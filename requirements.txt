@@ -1,0 +1,5 @@
+nextcord[voice]
+yt-dlp
+spotipy
+python-dotenv
+setuptools
