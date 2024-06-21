@@ -74,11 +74,12 @@ def get_from_url_youtube(url, path):
     }
     try:
         with YoutubeDL(YTDL_OPTIONS) as dl:
+            info = dl.extract_info(url, download=False)
             dl.download(url)
     except:
         return False
     else:
-        return True
+        return info['title']
     
 def get_from_search_youtube(term, path):
     YTDL_OPTIONS = {
@@ -99,14 +100,12 @@ def get_from_search_youtube(term, path):
     }
     try:
         with YoutubeDL(YTDL_OPTIONS) as dl:
-            print("getting info")
-            info = dl.extract_info(f"ytsearch1:{term}", download=False)['entries']
-            print("done")
+            info = dl.extract_info(f"ytsearch1:{term}", download=False)
     except:
         return False
     else:
-        if info:
-            url = "https://www.youtube.com/watch?v="+info[0]['id']
+        if info['entries']:
+            url = "https://www.youtube.com/watch?v="+info['entries'][0]['id']
             return get_from_url_youtube(url, path)
         else:
             return False
@@ -120,10 +119,8 @@ def playlist_assembler(url, path_local, path_global):
         playlist_downloads[path_global].append(None)
 
 def playlist_assembler_spotify(term, path_local, path_global):
-    print("assembler started")
     global playlist_downloads
     content = get_from_search_youtube(term, path_local)
-    print("search done")
     if content:
         playlist_downloads[path_global].append(path_local)
     else:
@@ -154,43 +151,10 @@ def is_playlist(url):
     else:
         return False
 
-def get_from_url(url, path):
-    #try:
-    content = is_playlist(url)
-    if content:
-        global playlist_downloads
-        playlist_downloads[path] = []
-        threads = []
-        paths = []
-        for idx, entry in enumerate(content['entries']):
-            threads.append(threading.Thread(target=playlist_assembler, args=["https://www.youtube.com/watch?v="+entry['id'], path+'-'+str(idx), path]))
-            paths.append(path+'-'+str(idx))
-        for thread in threads:
-            thread.start()
-            time.sleep(0.5)
-        for thread in threads:
-            thread.join()
-        return_value = []
-        for value in paths: # sort them to be in order
-            if value in playlist_downloads[path]:
-                return_value.append(value)
-            else:
-                return_value.append(None)
-        del playlist_downloads[path]
-        return return_value
-    else:
-        status = get_from_url_youtube(url, path_local)
-        if status:
-            return [path]
-        else:
-            return [None]
-    #except:
-    #    return [None]
-
 class fake_response:
     status_code = 404
 
-def get_from_term(term, path, sp):
+async def get_from_term(term, path, sp):
     try:
         response = requests.options(term)
     except:
@@ -199,33 +163,31 @@ def get_from_term(term, path, sp):
         if re.compile(r"((?:www|open)\.)?((?:spotify\.com))").search(term):
             result = get_from_url_spotify(term, sp)
             if result:
-                threads = []
-                paths = []
-                global playlist_downloads
-                playlist_downloads[path] = []
                 for idx, track in enumerate(result):
-                    threads.append(threading.Thread(target=playlist_assembler_spotify, args=[track, path+'-'+str(idx), path]))
-                    paths.append(path+'-'+str(idx))
-                for thread in threads:
-                    thread.start()
-                    time.sleep(0.1)
-                for thread in threads:
-                    thread.join()
-                return_value = []
-                for value in paths: # sort them to be in order
-                    if value in playlist_downloads[path]:
-                        return_value.append(value)
+                    status = get_from_search_youtube(track, path+'-'+str(idx))
+                    if status:
+                        yield (path+'-'+str(idx), status)
                     else:
-                        return_value.append(None)
-                del playlist_downloads[path]
-                return return_value
+                        yield None
             else:
-                return None
-            return spotify_handler(term, interaction, channel)
+                yield None
         else:
-            return get_from_url(term, path)
+            content = is_playlist(term)
+            if content:
+                for idx, entry in enumerate(content['entries']):
+                    if get_from_url_youtube("https://www.youtube.com/watch?v="+entry['id'], path+'-'+str(idx)):
+                        yield (path+'-'+str(idx), entry['title'])
+                    else:
+                        yield None
+            else:
+                status = get_from_url_youtube(term, path)
+                if status:
+                    yield (path, status)
+                else:
+                    yield None
     else:
-        if get_from_search_youtube(term, path):
-            return [path]
+        status = get_from_search_youtube(term, path)
+        if status:
+            yield (path, status)
         else:
-            return [None]
+            yield None
