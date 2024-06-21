@@ -110,22 +110,6 @@ def get_from_search_youtube(term, path):
         else:
             return False
 
-def playlist_assembler(url, path_local, path_global):
-    global playlist_downloads
-    content = get_from_url_youtube(url, path_local)
-    if content:
-        playlist_downloads[path_global].append(path_local)
-    else:
-        playlist_downloads[path_global].append(None)
-
-def playlist_assembler_spotify(term, path_local, path_global):
-    global playlist_downloads
-    content = get_from_search_youtube(term, path_local)
-    if content:
-        playlist_downloads[path_global].append(path_local)
-    else:
-        playlist_downloads[path_global].append(None)
-
 def is_playlist(url):
     YTDL_OPTIONS = {
         'format': 'bestaudio/best',
