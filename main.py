@@ -29,7 +29,7 @@ def channel_watcher(guild):
         time.sleep(0.01)
         if time.time() > timeout and timeout != 0:
             asyncio.run_coroutine_threadsafe(coro=proto.disconnect(), loop=client.loop)
-            asyncio.run_coroutine_threadsafe(coro=session_channels[0].send("No songs played in the last 5 minutes, disconnected!\nStart a new session to keep playing"), loop=client.loop)
+            asyncio.run_coroutine_threadsafe(coro=session_channels[guild].send("No songs played in the last 5 minutes, disconnected!\nStart a new session to keep playing"), loop=client.loop)
             del session_channels[guild]
             return
         try:
