@@ -41,8 +41,10 @@ def channel_watcher(guild):
             else:
                 source = discord.FFmpegOpusAudio(session_channels[guild][3][0][0]+".mp3", bitrate=256)
                 session_channels[guild][2].play(source)
-                asyncio.run_coroutine_threadsafe(coro=guild.me.edit(nick="Playing " + session_channels[guild][3][0][1][:-24]), loop=client.loop)
-                asyncio.run_coroutine_threadsafe(coro=add_next_button(current_song_message[guild.id][0], guild), loop=client.loop)
+                asyncio.run_coroutine_threadsafe(coro=guild.me.edit(nick="Playing " + session_channels[guild][3][0][1][:24]), loop=client.loop)
+                try:
+                    asyncio.run_coroutine_threadsafe(coro=add_next_button(current_song_message[guild.id][0][0], guild), loop=client.loop)
+                except: pass # the song message may not have been sent yet
                 try:
                     while session_channels[guild][2].is_playing():
                         time.sleep(0.01)
@@ -51,8 +53,11 @@ def channel_watcher(guild):
                 session_channels[guild][3].pop(0)
                 timeout = time.time() + 300
                 asyncio.run_coroutine_threadsafe(coro=guild.me.edit(nick=None), loop=client.loop)
-                asyncio.run_coroutine_threadsafe(coro=remove_view(current_song_message[guild.id][0]), loop=client.loop)
-                current_song_message[guild.id].pop(0)
+                try:
+                    asyncio.run_coroutine_threadsafe(coro=remove_view(current_song_message[guild.id][0][0]), loop=client.loop)
+                    current_song_message[guild.id].pop(0)
+                except: # the song message still may not have been sent yet
+                    pass
 
 class MusicActions(discord.ui.View):
     def __init__(self, *, timeout=None, guild):
@@ -61,12 +66,15 @@ class MusicActions(discord.ui.View):
     @discord.ui.button(label="Stop", style=discord.ButtonStyle.red)
     async def stop_button(self, button: discord.ui.Button, interaction: discord.Interaction):
         global session_channels
+        global current_song_message
         thread = session_channels[self.guild][0]
         proto = session_channels[self.guild][2]
         queue = session_channels[self.guild][3]
         del session_channels[self.guild]
         await proto.disconnect()
-        await thread.send("Session ended.")
+        try:
+            await thread.send("Session ended.")
+        except: pass # thread may no longer exist
         for child in self.children:
             child.disabled = True
         button.label = "Stopped"
@@ -74,6 +82,10 @@ class MusicActions(discord.ui.View):
         await self.guild.me.edit(nick=None)
         for path, name in [x for x in queue if x is not True]:
             os.remove(path+".mp3")
+        for message in [x[0] for x in current_song_message[self.guild.id]]:
+            try:
+                await message.edit(view=None)
+            except: pass # messages may no longer exist
     @discord.ui.button(label="Next", style=discord.ButtonStyle.primary)
     async def next_button(self, button: discord.ui.Button, interaction: discord.Interaction):
         global session_channels
@@ -101,11 +113,18 @@ class RemoveButton(discord.ui.View):
         self.guild = guild
     @discord.ui.button(label="Remove", style=discord.ButtonStyle.red)
     async def remove_button(self, button: discord.ui.Button, interaction: discord.Interaction):
+        global session_channels
+        global current_song_message
         try:
             song_index = session_channels[self.guild][3].index(self.song)
             if song_index:
                 session_channels[self.guild][3].pop(song_index)
-                await interaction.response.edit_message(content="Removed " + str(self.song[1]) + " from the queue.")
+                button.disabled = True
+                await interaction.response.edit_message(content="Removed " + str(self.song[1]) + " from the queue.", view=self)
+                try:
+                    song_index = [x[1] for x in current_song_message[self.guild.id]].index(self.song)
+                except:
+                    pass
             else:
                 await interaction.response.edit_message(content="Song not found in the queue.")
         except:
@@ -147,9 +166,9 @@ async def session(
 async def song_send(message, name, path, delete, song, guild):
     global current_song_message
     if current_song_message[guild.id] == []:
-        current_song_message[guild.id].append(await message.channel.send(name, file=discord.File(fp=path+".mp3", filename=name+".mp3"), view=NextButton(guild=guild)))
+        current_song_message[guild.id].append((await message.channel.send(name, file=discord.File(fp=path+".mp3", filename=name+".mp3"), view=NextButton(guild=guild)), song))
     else:
-        current_song_message[guild.id].append(await message.channel.send(name, file=discord.File(fp=path + ".mp3", filename=name + ".mp3"), view=RemoveButton(song=song, guild=guild)))
+        current_song_message[guild.id].append((await message.channel.send(name, file=discord.File(fp=path + ".mp3", filename=name + ".mp3"), view=RemoveButton(song=song, guild=guild)), song))
     if delete: os.remove(path+".mp3")
 
 async def add_next_button(message, guild):
