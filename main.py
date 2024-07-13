@@ -16,7 +16,7 @@ sp = authenticate_spotify(SPOTIFY_ID, SPOTIFY_TOKEN)
 os.makedirs("./music", exist_ok=True)
 
 session_channels = {}
-current_song_message = {}
+#current_song_message = {}
 currently_downloading = {}
 
 def channel_watcher(guild):
@@ -40,29 +40,34 @@ def channel_watcher(guild):
         except:
             return
         if session_channels[guild][3] != []:
-            if session_channels[guild][3][0] == True:
-                timeout = 0 # prevent disconnecting after a download has been initiated
-                session_channels[guild][3].pop(0)
-            else:
-                source = discord.FFmpegOpusAudio(session_channels[guild][3][0][0]+".mp3", bitrate=256)
-                session_channels[guild][2].play(source)
-                asyncio.run_coroutine_threadsafe(coro=guild.me.edit(nick="Playing " + session_channels[guild][3][0][1][:24]), loop=client.loop)
-                try:
-                    asyncio.run_coroutine_threadsafe(coro=add_next_button(current_song_message[guild.id][0][0], guild), loop=client.loop)
-                except: pass # the song message may not have been sent yet
-                try:
-                    while session_channels[guild][2].is_playing() or session_channels[guild][2].is_paused():
-                        time.sleep(0.01)
-                except: return
-                os.remove(session_channels[guild][3][0][0]+".mp3")
-                session_channels[guild][3].pop(0)
-                timeout = time.time() + 300
-                asyncio.run_coroutine_threadsafe(coro=guild.me.edit(nick=None), loop=client.loop)
-                try:
-                    asyncio.run_coroutine_threadsafe(coro=remove_view(current_song_message[guild.id][0][0]), loop=client.loop)
-                    current_song_message[guild.id].pop(0)
-                except: # the song message still may not have been sent yet
-                    pass
+            #if session_channels[guild][3][0] == True:
+            #    timeout = 0 # prevent disconnecting after a download has been initiated
+            #    session_channels[guild][3].pop(0)
+            #else:
+            song = session_channels[guild][3][0].song
+            song_message = session_channels[guild][3][0].message
+            source = discord.FFmpegOpusAudio(song[0]+".mp3", bitrate=256)
+            session_channels[guild][2].play(source)
+            asyncio.run_coroutine_threadsafe(coro=guild.me.edit(nick="Playing " + song[1][:24]), loop=client.loop)
+            #try:
+            #    asyncio.run_coroutine_threadsafe(coro=add_next_button(current_song_message[guild.id][0][0], guild), loop=client.loop)
+            #except: pass # the song message may not have been sent yet
+            asyncio.run_coroutine_threadsafe(coro=add_next_button(song_message, guild),
+                                             loop=client.loop)
+            try:
+                while session_channels[guild][2].is_playing() or session_channels[guild][2].is_paused():
+                    time.sleep(0.01)
+            except: return
+            os.remove(song[0]+".mp3")
+            session_channels[guild][3].pop(0)
+            timeout = time.time() + 300
+            asyncio.run_coroutine_threadsafe(coro=guild.me.edit(nick=None), loop=client.loop)
+            #try:
+            #    asyncio.run_coroutine_threadsafe(coro=remove_view(current_song_message[guild.id][0][0]), loop=client.loop)
+            #    current_song_message[guild.id].pop(0)
+            #except: # the song message still may not have been sent yet
+            #    pass
+            asyncio.run_coroutine_threadsafe(coro=remove_view(song_message), loop=client.loop)
 
 class MusicActions(discord.ui.View):
     def __init__(self, *, timeout=None, guild):
@@ -164,7 +169,8 @@ async def session(
         channel: discord.VoiceChannel,
 ):
     global session_channels
-    global current_song_message
+    #global current_song_message
+    global currently_downloading
     try:
         session_channels[interaction.guild]
     except:
@@ -178,7 +184,7 @@ async def session(
         await thread.send("Send a link or search term here to start!")
         proto = await channel.connect()
         session_channels[interaction.guild] = (thread, channel, proto, [])
-        current_song_message[interaction.guild.id] = []
+        #current_song_message[interaction.guild.id] = []
         currently_downloading[interaction.guild.id] = 0
         threading.Thread(target=channel_watcher, args=[interaction.guild]).start()
         await original_message.edit(view=MusicActions(guild=interaction.guild))
@@ -196,19 +202,23 @@ async def session(
 async def send_song_message(message, song):
     name = song[1]
     guild = message.guild
-    global current_song_message
-    if current_song_message[guild.id] == []:
-        sent_message = await message.channel.send(name, view=NextButton(guild=guild))
-    else:
-        sent_message = await message.channel.send(name, view=RemoveButton(song=song, guild=guild))
-    current_song_message[guild.id].append((sent_message, song))
+    #global current_song_message
+    #if current_song_message[guild.id] == []:
+    #    sent_message = await message.channel.send(name, view=NextButton(guild=guild))
+    #else:
+    #    sent_message = await message.channel.send(name, view=RemoveButton(song=song, guild=guild))
+    sent_message = await message.channel.send(name, view=RemoveButton(song=song, guild=guild))
+    #current_song_message[guild.id].append((sent_message, song))
     return sent_message
 
 async def edit_song_message(message, song):
     name = song[1]
     path = song[0]
-    global current_song_message
-    await message.edit(file=discord.File(fp=path + ".mp3", filename=name + ".mp3"))
+    #global current_song_message
+    try:
+        await message.edit(file=discord.File(fp=path + ".mp3", filename=name + ".mp3"))
+    except Exception as e:
+        print(repr(e))
 
 async def add_next_button(message, guild):
     await message.edit(view=NextButton(guild=guild))
@@ -238,7 +248,7 @@ async def async_downloader(term, path, message):
             #         asyncio.run_coroutine_threadsafe(coro=song_send(message, song[1], song[0], True, song, message.guild), loop=client.loop)
             sent_message = asyncio.run_coroutine_threadsafe(coro=send_song_message(message, song), loop=client.loop).result()
             session_channels[message.guild][3].append(SongRequest(song=song, message=sent_message))
-            asyncio.run_coroutine_threadsafe(coro=edit_song_message(message, song), loop=client.loop)
+            asyncio.run_coroutine_threadsafe(coro=edit_song_message(sent_message, song), loop=client.loop)
         else:
             asyncio.run_coroutine_threadsafe(coro=message.channel.send("Something went wrong while downloading a song!"), loop=client.loop)
     currently_downloading[message.guild.id] -= 1

@@ -24,7 +24,13 @@ def read_spotify_playlist(sp, playlist_id):
     try:
         results = sp.playlist(playlist_id)
     except:
-        return None
+        try:
+            results = sp.album_tracks(playlist_id)
+            print(results)
+        except:
+            return None
+        else:
+            return results
     else:
         return results
 
@@ -38,7 +44,8 @@ def read_spotify_track(sp, song_id):
 
 def get_from_url_spotify(url, sp):
     playlist = read_spotify_playlist(sp, url)
-    track = read_spotify_track(sp, url)
+    if playlist is None:
+        track = read_spotify_track(sp, url)
     tracks = []
     if playlist is not None:
         for i in playlist["tracks"]["items"]:
