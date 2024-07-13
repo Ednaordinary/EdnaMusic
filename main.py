@@ -32,7 +32,7 @@ def channel_watcher(guild, thread_message):
                 timeout = time.time() + 300
             else:
                 asyncio.run_coroutine_threadsafe(coro=proto.disconnect(), loop=client.loop)
-                asyncio.run_coroutine_threadsafe(coro=session_channels[guild].send("No songs played in the last 5 minutes, disconnected!\nStart a new session to keep playing"), loop=client.loop)
+                asyncio.run_coroutine_threadsafe(coro=session_channels[guild][0].send("No songs played in the last 5 minutes, disconnected!\nStart a new session to keep playing"), loop=client.loop)
                 on_session_end(guild)
                 asyncio.run_coroutine_threadsafe(coro=thread_message.edit(view=MusicActionsDisabled), loop=client.loop) # If the message was sent over 15 minutes ago, this may not work. At least me try, though
                 return
@@ -233,22 +233,15 @@ def on_session_end(guild):
         print(repr(e))
         # This method may be called by multiple places on a session end
 
-async def send_song_message(message, song):
+async def send_song_message(message, song, button):
     name = song[1]
     guild = message.guild
     global session_channels
-    #global current_song_message
-    #if current_song_message[guild.id] == []:
-    #    sent_message = await message.channel.send(name, view=NextButton(guild=guild))
-    #else:
-    #    sent_message = await message.channel.send(name, view=RemoveButton(song=song, guild=guild))
-    try:
-        session_channels[guild]
-    except:
-        sent_message = await message.channel.send(name)
+    if button:
+        sent_message = await message.channel.send(name, view=RemoveButton(song=song, guild=guild))
         return sent_message
     else:
-        sent_message = await message.channel.send(name, view=RemoveButton(song=song, guild=guild))
+        sent_message = await message.channel.send(name)
         return sent_message
 
 async def edit_song_message(message, song):
@@ -269,14 +262,20 @@ async def remove_view(message):
 async def async_downloader(term, path, message):
     global session_channels
     global currently_downloading
-    append_to_queue = True #
+    add_to_queue = True #
     currently_downloading[message.guild.id] += 1
     async for song in get_from_term(term, path, sp):
         if song is not None:
-            sent_message = asyncio.run_coroutine_threadsafe(coro=send_song_message(message, song), loop=client.loop).result()
-            try:
-                session_channels[message.guild][3].append(SongRequest(song=song, message=sent_message))
-            except: pass
+            if add_to_queue:
+                sent_message = asyncio.run_coroutine_threadsafe(coro=send_song_message(message, song, True), loop=client.loop).result()
+                try:
+                    session_channels[message.guild][3].append(SongRequest(song=song, message=sent_message))
+                except:
+                    add_to_queue = False
+                    pass
+            else:
+                sent_message = asyncio.run_coroutine_threadsafe(coro=send_song_message(message, song, False),
+                                                                loop=client.loop).result()
             asyncio.run_coroutine_threadsafe(coro=edit_song_message(sent_message, song), loop=client.loop)
         else:
             asyncio.run_coroutine_threadsafe(coro=message.channel.send("Something went wrong while downloading a song!"), loop=client.loop)
