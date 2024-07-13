@@ -219,7 +219,7 @@ async def remove_view(message):
 async def async_downloader(term, path, message):
     global session_channels
     global currently_downloading
-    #continue_queue = True
+    continue_queue = True
     currently_downloading[message.guild.id] += 1
     async for song in get_from_term(term, path, sp):
         if song is not None:
