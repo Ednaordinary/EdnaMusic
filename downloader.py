@@ -26,7 +26,9 @@ def read_spotify_playlist(sp, playlist_id):
     except:
         try:
             results = sp.album_tracks(playlist_id)
-            print(results)
+            results['tracks'] = {}
+            results['tracks']['items'] = [{'track': x} for x in results['items']]
+            print(results['tracks'])
         except:
             return None
         else:
