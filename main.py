@@ -223,7 +223,9 @@ def on_session_end(guild):
         except:
             pass  # thread may no longer exist
         asyncio.run_coroutine_threadsafe(coro=guild.me.edit(nick=None), loop=client.loop)
-        shutil.rmtree("music/" + str(guild.id))
+        for file in os.listdir("music/" + str(guild.id)): # Prevent deleting music that is still downloading
+            if file.endswith(".mp3"):
+                os.remove(os.path.join("music/"+ str(guild.id) + "/" + file))
         for message in [x.message for x in queue]:
             try:
                 asyncio.run_coroutine_threadsafe(coro=message.edit(view=None), loop=client.loop)

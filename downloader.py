@@ -34,6 +34,7 @@ def read_spotify_playlist(sp, playlist_id):
             while results['next']:
                 results = sp.next(results)
                 tracks.extend(results['items'])
+            tracks = [{'track': x} for x in tracks]
         except:
             return None
         else:
@@ -55,12 +56,11 @@ def get_from_url_spotify(url, sp):
         track = read_spotify_track(sp, url)
     tracks = []
     if playlist is not None:
-        for i in playlist: #playlist["tracks"]["items"]:
+        for i in playlist:
             artists = ""
-            for x in i["artists"]:#i["track"]["artists"]:
+            for x in i["track"]["artists"]:
                 artists = artists + " " + x["name"]
-            #tracks.append(i["track"]["name"] + artists)
-            tracks.append(i["name"] + artists)
+            tracks.append(i["track"]["name"] + artists)
     elif track is not None:
         artists = ""
         for i in track["artists"]:
