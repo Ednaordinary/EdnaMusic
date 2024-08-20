@@ -1,5 +1,13 @@
 # EdnaMusic
-Music bot for discord. Multithreaded, fast
+
+## One command, endless music
+
+![image](https://github.com/user-attachments/assets/4724f7cf-3e42-4bf9-b02d-b1f08522fab7)
+
+Supports both YouTube and Spotify songs and playlists.
+Demystifing music bots by giving you a single command: /session
+Want more songs? Send a link or search term in the thread
+Want to skip, pause, or disconnect? Buttons!
 
 ### Run
 
@@ -26,7 +34,3 @@ Place the following tokens in a .env:
 Run /session with your desired channel
 
 In the thread it creates, send youtube links, spotify links, or search terms for the bot to play
-
-### Todo
-
-- [] Move music into a class
