@@ -6,7 +6,9 @@
 
 Supports both YouTube and Spotify songs and playlists.
 Demystifing music bots by giving you a single command: /session
+
 Want more songs? Send a link or search term in the thread
+
 Want to skip, pause, or disconnect? Buttons!
 
 ### Run
