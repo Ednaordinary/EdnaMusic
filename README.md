@@ -13,9 +13,10 @@ Want to skip, pause, or disconnect? Buttons!
 
 ### Run
 
-`git clone https://github.com/Ednaordinary/EdnaMusic`
-
-`cd EdnaMusic`
+```sh
+git clone https://github.com/Ednaordinary/EdnaMusic
+cd EdnaMusic
+```
 
 Make and enter a virtual environment of your choice.
 
@@ -27,9 +28,10 @@ Place the following tokens in a .env:
 
 "SPOTIFY_TOKEN": The token for that id
 
-`pip install -r requirements.txt`
-
-`python3 ./main.py`
+```sh
+pip install -r requirements.txt
+python3 ./main.py
+```
 
 ### Use
 
