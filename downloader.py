@@ -22,11 +22,25 @@ def authenticate_spotify(spotify_id, spotify_secret):
 
 def read_spotify_playlist(sp, playlist_id):
     try:
-        results = sp.playlist(playlist_id)
+        results = sp.playlist_tracks(playlist_id)
+        tracks = results['items']
+        while results['next']:
+            results = sp.next(results)
+            tracks.extend(results['items'])
     except:
-        return None
+        try:
+            results = sp.album_tracks(playlist_id)
+            tracks = results['items']
+            while results['next']:
+                results = sp.next(results)
+                tracks.extend(results['items'])
+            tracks = [{'track': x} for x in tracks]
+        except:
+            return None
+        else:
+            return tracks
     else:
-        return results
+        return tracks
 
 def read_spotify_track(sp, song_id):
     try:
@@ -38,10 +52,11 @@ def read_spotify_track(sp, song_id):
 
 def get_from_url_spotify(url, sp):
     playlist = read_spotify_playlist(sp, url)
-    track = read_spotify_track(sp, url)
+    if playlist is None:
+        track = read_spotify_track(sp, url)
     tracks = []
     if playlist is not None:
-        for i in playlist["tracks"]["items"]:
+        for i in playlist:
             artists = ""
             for x in i["track"]["artists"]:
                 artists = artists + " " + x["name"]
