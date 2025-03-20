@@ -24,15 +24,15 @@ def channel_watcher(guild, thread_message):
     global session_channels
     global currently_downloading
     proto = session_channels[guild][2]
-    timeout = time.time() + 300
+    timeout = time.time() + 1800
     while True:
         time.sleep(0.01)
         if time.time() > timeout and timeout != 0:
             if currently_downloading[guild.id] > 0:
-                timeout = time.time() + 300
+                timeout = time.time() + 1800
             else:
                 asyncio.run_coroutine_threadsafe(coro=proto.disconnect(), loop=client.loop)
-                asyncio.run_coroutine_threadsafe(coro=session_channels[guild][0].send("No songs played in the last 5 minutes, disconnected!\nStart a new session to keep playing"), loop=client.loop)
+                asyncio.run_coroutine_threadsafe(coro=session_channels[guild][0].send("No songs played in the last 30 minutes, disconnected!\nStart a new session to keep playing"), loop=client.loop)
                 on_session_end(guild)
                 asyncio.run_coroutine_threadsafe(coro=thread_message.edit(view=MusicActionsDisabled), loop=client.loop) # If the message was sent over 15 minutes ago, this may not work. At least me try, though
                 return
@@ -74,7 +74,7 @@ def channel_watcher(guild, thread_message):
                 return
             os.remove(song[0]+".mp3")
             session_channels[guild][3].pop(0)
-            timeout = time.time() + 300
+            timeout = time.time() + 1800
             if session_channels[guild][3] == []:
                 asyncio.run_coroutine_threadsafe(coro=guild.me.edit(nick=None), loop=client.loop)
             #try:
@@ -175,6 +175,9 @@ async def session(
         interaction: discord.Interaction,
         channel: discord.VoiceChannel,
 ):
+    if not isinstance(interaction.channel, discord.TextChannel):
+        await interaction.response.send_message("Can't start a session in this channel")
+        return
     global session_channels
     #global current_song_message
     global currently_downloading
