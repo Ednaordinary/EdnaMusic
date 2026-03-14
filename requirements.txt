@@ -1,4 +1,4 @@
-nextcord[voice]
+discord.py[voice]
 yt-dlp
 spotipy
 python-dotenv
