@@ -233,7 +233,6 @@ async def on_message(message):
     except:
         pass
     else:
-        print("session", session)
         if message.channel == session[0] and message.author.id != client.user.id:
             #session_channels[message.guild][3].append(True)
             print("starting thread")
@@ -265,15 +264,26 @@ def on_session_end(guild):
         # This method may be called by multiple places on a session end
 
 async def send_song_message(message, song, button):
-    name = song[1]
-    guild = message.guild
-    global session_channels
-    if button:
-        sent_message = await message.channel.send(name, view=RemoveButton(song=song, guild=guild))
-    else:
-        sent_message = await message.channel.send(name)
-    session_channels[message.guild.id][3].append(SongRequest(song=song, message=sent_message))
-    await edit_song_message(sent_message, song)
+    try:
+        name = song[1]
+        path = song[0]
+        guild = message.guild
+        global session_channels
+        file = discord.File(fp=path + ".mp3", filename=name + ".mp3")
+        try:
+            if button:
+                sent_message = await message.channel.send(name, view=RemoveButton(song=song, guild=guild), file=file)
+            else:
+                sent_message = await message.channel.send(name, file=file)
+        except:
+            if button:
+                sent_message = await message.channel.send(name, view=RemoveButton(song=song, guild=guild))
+            else:
+                sent_message = await message.channel.send(name)
+        session_channels[message.guild.id][3].append(SongRequest(song=song, message=sent_message))
+        #await edit_song_message(sent_message, song)
+    except:
+        print(traceback.format_exc())
 
 async def edit_song_message(message, song):
     name = song[1]
@@ -299,7 +309,7 @@ async def async_downloader(term, path, message):
     async for song in get_from_term(term, path, sp):
         print("got song")
         if song is not None:
-            asyncio.run_coroutine_threadsafe(coro=send_song_message(message, song, True), loop=client.loop)
+            asyncio.run_coroutine_threadsafe(coro=send_song_message(message, song, True), loop=client.loop).result()
         else:
             asyncio.run_coroutine_threadsafe(coro=message.channel.send("Something went wrong while downloading a song!"), loop=client.loop)
     currently_downloading[message.guild.id] -= 1
