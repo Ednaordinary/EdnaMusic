@@ -6,9 +6,12 @@ import time
 import spotipy
 import requests
 import threading
+import concurrent.futures
 from yt_dlp import YoutubeDL
 from spotipy.oauth2 import SpotifyOAuth
 playlist_downloads = {}
+
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=20)
 
 def authenticate_spotify(spotify_id, spotify_secret):
     sp_oauth = SpotifyOAuth(
@@ -86,11 +89,12 @@ def get_from_url_youtube(url, path):
         'no_warnings': True,
         'default_search': 'auto',
         'source_address': '0.0.0.0',
+        #'cookiefile': 'cookies.txt'
     }
     try:
         with YoutubeDL(YTDL_OPTIONS) as dl:
-            info = dl.extract_info(url, download=False)
-            dl.download(url)
+            info = dl.extract_info(url, download=True)
+            #dl.download(url)
     except:
         return False
     else:
@@ -99,11 +103,11 @@ def get_from_url_youtube(url, path):
 def get_from_search_youtube(term, path):
     YTDL_OPTIONS = {
         'format': 'bestaudio/best',
-        'extractaudio': False,
+        'extractaudio': True,
         'audioformat': 'mp3',
-        'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+        'outtmpl': path + ".mp3",
         'restrictfilenames': True,
-        'noplaylist': False,
+        'noplaylist': True,
         'nocheckcertificate': True,
         'ignoreerrors': False,
         'logtostderr': False,
@@ -111,26 +115,20 @@ def get_from_search_youtube(term, path):
         'no_warnings': True,
         'default_search': 'auto',
         'source_address': '0.0.0.0',
-        'extract_flat': True,
+        #'extract_flat': True,
     }
     try:
         with YoutubeDL(YTDL_OPTIONS) as dl:
-            info = dl.extract_info(f"ytsearch1:{term}", download=False)
+            info = dl.extract_info(f"ytsearch1:{term}", download=True)
+            return info['title']
     except:
         return False
-    else:
-        if info['entries']:
-            url = "https://www.youtube.com/watch?v="+info['entries'][0]['id']
-            return get_from_url_youtube(url, path)
-        else:
-            return False
 
 def is_playlist(url):
     YTDL_OPTIONS = {
         'format': 'bestaudio/best',
         'extractaudio': False,
         'audioformat': 'mp3',
-        'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
         'restrictfilenames': True,
         'noplaylist': False,
         'nocheckcertificate': True,
@@ -162,10 +160,11 @@ async def get_from_term(term, path, sp):
         if re.compile(r"((?:www|open)\.)?((?:spotify\.com))").search(term):
             result = get_from_url_spotify(term, sp)
             if result:
-                for idx, track in enumerate(result):
-                    status = get_from_search_youtube(track, path+'-'+str(idx))
+                print(result)
+                downloads = executor.map(get_from_search_youtube, result, [path+'-'+str(idx) for idx in range(len(result))])
+                for idx, status in enumerate(downloads):
                     if status:
-                        yield (path+'-'+str(idx), status)
+                        yield (path + '-'+str(idx), status)
                     else:
                         yield None
             else:
@@ -173,9 +172,11 @@ async def get_from_term(term, path, sp):
         else:
             content = is_playlist(term)
             if content:
-                for idx, entry in enumerate(content['entries']):
-                    if get_from_url_youtube("https://www.youtube.com/watch?v="+entry['id'], path+'-'+str(idx)):
-                        yield (path+'-'+str(idx), entry['title'])
+                title_map = [entry['title'] for entry in content['entries']]
+                downloads = executor.map(get_from_url_youtube, ["https://www.youtube.com/watch?v="+entry["id"] for entry in content['entries']], [path+'-'+str(idx) for idx in range(len(content))])
+                for idx, status in enumerate(downloads):
+                    if status:
+                        yield (path + '-'+str(idx), title_map[idx])
                     else:
                         yield None
             else:
